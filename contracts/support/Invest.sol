@@ -5,8 +5,8 @@ pragma abicoder v2;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import "./Trouble.sol";
-import "./Rebel.sol";
+import "../Trouble.sol";
+import "../Rebel.sol";
 
 import "hardhat/console.sol";
 
