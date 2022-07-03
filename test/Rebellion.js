@@ -189,7 +189,7 @@ describe("Simulate a Rebellion", function () {
       await troubleToken.connect(rebelTreasury).makeTrouble(member.address, 1000)
       expect(await troubleToken.balanceOf(member.address)).to.equal(currentBalance.add(1000));
 
-      await troubleToken.connect(rebelTreasury).burnFrom(member.address, 1000)
+      await troubleToken.connect(rebelTreasury).burnFor(member.address, 1000)
       expect(await troubleToken.balanceOf(member.address)).to.equal(currentBalance);
     })
     
