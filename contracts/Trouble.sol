@@ -72,7 +72,7 @@ contract Trouble is ERC20, ERC20Burnable, ERC20Snapshot, AccessControl, Pausable
     _burn(msg.sender, _amount);
   }
 
-  function burnFor(address _for, uint256 _amount) public override(ERC20Burnable) onlyRole(BURNER_ROLE) {
+  function burnFor(address _for, uint256 _amount) public onlyRole(BURNER_ROLE) {
     _burn(_for, _amount);
   }
 

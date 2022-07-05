@@ -31,7 +31,12 @@ contract Invest is Ownable {
   address troubleTokenAddress;
   uint256 valuation;
 
+  // Optimism Mainnet
   address constant ETH_USD_ORACLE = 0x13e3Ee699D1909E989722E753853AE30b17e08c5;
+  
+  // // Optimism Kovan
+  // address constant ETH_USD_ORACLE = 0x7f8847242a530E809E17bF2DA5D2f9d2c4A43261;
+
   AggregatorV3Interface internal priceFeed = AggregatorV3Interface(ETH_USD_ORACLE);
 
   receive() external payable { }

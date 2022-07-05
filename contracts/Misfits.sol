@@ -60,6 +60,9 @@ contract Misfits is ERC721, Pausable, Ownable {
   /// @notice Thrown when trying to unstake an unstaked Misfit
   error MisfitNotStaked();
 
+  /// @notice Thrown when trying to unstake an unstaked Misfit
+  error MisfitDoesntExist();
+
   /// @notice Thrown when trying to stake a staked community
   error CommunityAlreadyStaked();
 
@@ -71,16 +74,13 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   /// EVENTS ///
 
-  /// @notice Emitted when staking a Misfit
+  /// @notice Emitted when staking and unstaking Misfits
   event MisfitStaked(uint256 tokenId, uint256 communityId, string domain);
-
-  /// @notice Emitted when unstaking a Misfit
-  event MisfitUnstaked(uint256 tokenId, uint256 communityId, string domain);
 
   /// @notice Emitted when boosting
   event Boosted(Boost boost);
 
-  /// @notice Emitted when swapping ETH to other stuff
+  /// @notice Emitted when withdrawing ETH
   event GotPaid(uint256 eth);
 
   struct Boost {
@@ -97,8 +97,11 @@ contract Misfits is ERC721, Pausable, Ownable {
     uint256 timestamp;
   }
   
-  // Optimism
+  // Optimism Mainnet
   address constant ETH_USD_ORACLE = 0x13e3Ee699D1909E989722E753853AE30b17e08c5;
+  
+  // // Optimism Kovan
+  // address constant ETH_USD_ORACLE = 0x7f8847242a530E809E17bF2DA5D2f9d2c4A43261;
 
   Counters.Counter private _tokenIdCounter;
 
@@ -113,31 +116,42 @@ contract Misfits is ERC721, Pausable, Ownable {
   uint256 daiMintPrice;
   uint256 maxSupply;
   uint256 troubleMintReward;
-  mapping(uint256 => uint8) stakedCommunities;
+  mapping(uint256 => uint256) stakedCommunities;
   mapping(uint256 => Stake) stakedMisfits;
 
   constructor() ERC721("Misfits", "MISFIT") {}
 
+  function tokenIdForCommunity(uint256 communityId) public view returns(uint256) {
+    return(stakedCommunities[communityId]);
+  }
+
+  function communityIdForToken(uint256 tokenId) public view returns(uint256) {
+    if(stakedMisfits[tokenId].tokenId == 0) revert MisfitNotStaked();
+    return(stakedMisfits[tokenId].tokenId);
+  }
+
   function stakeMisfit(uint256 tokenId, uint256 communityId, string memory domain) public {
+    if(_tokenIdCounter.current() < tokenId) revert MisfitDoesntExist();
     if(stakedMisfits[tokenId].tokenId != 0) revert MisfitAlreadyStaked();
-    if(ownerOf(tokenId) != msg.sender) revert Unauthorized();
-    if(stakedCommunities[communityId] == 1) revert CommunityAlreadyStaked();
+    if(stakedCommunities[communityId] != 0) revert CommunityAlreadyStaked();
+    if(ownerOf(tokenId) != msg.sender && msg.sender != owner()) revert Unauthorized();
 
     emit MisfitStaked(tokenId, communityId, domain);
     stakedMisfits[tokenId] = Stake(tokenId, communityId, domain, block.timestamp);
-    stakedCommunities[communityId] = 1;
+    stakedCommunities[communityId] = tokenId;
   }
   
-  function unstakeMisfit(uint256 tokenId, uint256 communityId) public {
+  function unstakeMisfit(uint256 tokenId) public {
+    if(_tokenIdCounter.current() < tokenId) revert MisfitDoesntExist();
     if(stakedMisfits[tokenId].tokenId == 0) revert MisfitNotStaked();
-    if(ownerOf(tokenId) != msg.sender) revert Unauthorized();
+    if(ownerOf(tokenId) != msg.sender && msg.sender != owner()) revert Unauthorized();
+    uint256 communityId = stakedMisfits[tokenId].communityId;
 
-    emit MisfitUnstaked(tokenId, communityId, stakedMisfits[tokenId].domain);
+    emit MisfitStaked(tokenId, 0, '');
+
     stakedMisfits[tokenId] = Stake(0,0,'',0);
     stakedCommunities[communityId] = 0;
   }
-
-  receive() external payable {}
 
   function mintPriceInEth() public view returns (uint256) {
   
@@ -154,10 +168,10 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   function mint(address to) public payable returns(uint256) {
 
-    _tokenIdCounter.increment();
-
     if(mintPriceInEth() > msg.value) revert NotEnoughEth();
-    if(_tokenIdCounter.current() > maxSupply) revert NotEnoughSupply();
+    if(_tokenIdCounter.current() + 1 > maxSupply) revert NotEnoughSupply();
+
+    _tokenIdCounter.increment();
 
     uint256 tokenId = _tokenIdCounter.current();
     _safeMint(to, tokenId);
@@ -166,13 +180,17 @@ contract Misfits is ERC721, Pausable, Ownable {
     return tokenId;
   }
 
-  function mintMultiple(address to, uint8 count) public payable {
+  function mintMultiple(address to, uint8 count) public payable returns (uint256[] memory){
     if(mintPriceInEth() * count > msg.value) revert NotEnoughEth();
     if(_tokenIdCounter.current() + count > maxSupply) revert NotEnoughSupply();
 
+    uint256[] memory tokenIds = new uint256[](count);
+
     for(uint256 i = 0; i < count; i++) {
-      mint(to);
+      tokenIds[i] = mint(to);
     }
+
+    return tokenIds;
   }
 
   function mintAndStake(address to, uint256 communityId, string memory domain) public payable {
@@ -180,7 +198,9 @@ contract Misfits is ERC721, Pausable, Ownable {
   }
 
   function setDomainFor(uint256 tokenId, string memory domain) public {
-    if(ownerOf(tokenId) != msg.sender) revert Unauthorized();
+    if(_tokenIdCounter.current() < tokenId) revert MisfitDoesntExist();
+    if(ownerOf(tokenId) != msg.sender && msg.sender != owner()) revert Unauthorized();
+    if(stakedMisfits[tokenId].communityId == 0) revert MisfitNotStaked();
     stakedMisfits[tokenId].domain = domain;
   }
 
@@ -238,9 +258,7 @@ contract Misfits is ERC721, Pausable, Ownable {
     uint256 boostsCount = 0;
 
     for(uint256 i = 0; i < boosts.length; i++) {
-      if(boosts[i].sender == sender && boosts[i].tokenId == tokenId) {
-        boostsCount++;
-      }
+      if(boosts[i].sender == sender && boosts[i].tokenId == tokenId) boostsCount++;
     }
 
     Boost[] memory _boosts = new Boost[](boostsCount);
@@ -266,6 +284,8 @@ contract Misfits is ERC721, Pausable, Ownable {
       return string(abi.encodePacked(metadataBaseUrl, Strings.toString(tokenId), '/metadata.json'));
     }
   }
+
+  receive() external payable {}
 
   // ONLY OWNER //
 
