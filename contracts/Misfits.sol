@@ -98,10 +98,10 @@ contract Misfits is ERC721, Pausable, Ownable {
   }
   
   // Optimism Mainnet
-  address constant ETH_USD_ORACLE = 0x13e3Ee699D1909E989722E753853AE30b17e08c5;
+  // address constant ETH_USD_ORACLE = 0x13e3Ee699D1909E989722E753853AE30b17e08c5;
   
-  // // Optimism Kovan
-  // address constant ETH_USD_ORACLE = 0x7f8847242a530E809E17bF2DA5D2f9d2c4A43261;
+  // Optimism Kovan
+  address constant ETH_USD_ORACLE = 0x7f8847242a530E809E17bF2DA5D2f9d2c4A43261;
 
   Counters.Counter private _tokenIdCounter;
 
@@ -109,13 +109,13 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   Boost[] boosts;
   string  metadataBaseUrl;
-  address rebelAddress;
-  address troubleAddress;
-  address withdrawContract;
-  address metadataContract;
-  uint256 daiMintPrice;
-  uint256 maxSupply;
-  uint256 troubleMintReward;
+  address public rebelAddress;
+  address public troubleAddress;
+  address public withdrawContract;
+  address public metadataContract;
+  uint256 public daiMintPrice;
+  uint256 public maxSupply;
+  uint256 public troubleMintReward;
   mapping(uint256 => uint256) stakedCommunities;
   mapping(uint256 => Stake) stakedMisfits;
 
@@ -127,7 +127,7 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   function communityIdForToken(uint256 tokenId) public view returns(uint256) {
     if(stakedMisfits[tokenId].tokenId == 0) revert MisfitNotStaked();
-    return(stakedMisfits[tokenId].tokenId);
+    return(stakedMisfits[tokenId].communityId);
   }
 
   function stakeMisfit(uint256 tokenId, uint256 communityId, string memory domain) public {
