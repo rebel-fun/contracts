@@ -19,12 +19,12 @@ interface WethLike {
 
 contract MintSwap is Ownable {
 
-  address constant WETH = 0x4200000000000000000000000000000000000006;
+  address constant WETH  = 0x4200000000000000000000000000000000000006;
   address constant REBEL = 0x328345ab56a490383B515c17ea6788bAB205BCA4;
-  address constant OP   = 0x4200000000000000000000000000000000000042;
-  address constant SWAP = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+  address constant OP    = 0x4200000000000000000000000000000000000042;
+  address constant SWAP  = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
-  address public rebelTreasury;
+  address public rebelTreasuryAddress;
 
   ISwapRouter private swapRouter;
   // uint24 public poolFee = 3000;
@@ -38,7 +38,7 @@ contract MintSwap is Ownable {
     swapRouter = ISwapRouter(SWAP);
     uint256 rebelTotal;
 
-    // console.log("OP balance treasury 1: ", ERC20(OP).balanceOf(address(rebelTreasury)));
+    // console.log("OP balance treasury 1: ", ERC20(OP).balanceOf(address(rebelTreasuryAddress)));
 
     // Convert sent ETH into WETH to swaps
     weth.deposit{value: amount}();
@@ -64,14 +64,14 @@ contract MintSwap is Ownable {
     
     // console.log("OP total swapped: ", rebelTotal);
     // console.log("OP balance this: ", ERC20(OP).balanceOf(address(this)));
-    // console.log("OP balance treasury 2: ", ERC20(OP).balanceOf(address(rebelTreasury)));
+    // console.log("OP balance treasury 2: ", ERC20(OP).balanceOf(address(rebelTreasuryAddress)));
 
-    ERC20(OP).transfer(rebelTreasury, ERC20(OP).balanceOf(address(this)));
+    ERC20(OP).transfer(rebelTreasuryAddress, ERC20(OP).balanceOf(address(this)));
 
-    // console.log("OP balance treasury 3: ", ERC20(OP).balanceOf(address(rebelTreasury)));
+    // console.log("OP balance treasury 3: ", ERC20(OP).balanceOf(address(rebelTreasuryAddress)));
   }
 
-  function setRebelAddress(address newAddress) public onlyOwner {
-    rebelTreasury = newAddress;
+  function setRebelTreasuryAddress(address newAddress) public onlyOwner {
+    rebelTreasuryAddress = newAddress;
   }
 }

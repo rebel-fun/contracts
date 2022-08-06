@@ -60,7 +60,7 @@ describe("Simulate a Rebellion", function () {
     await rebelToken.mint(communityTreasury.address, ethers.BigNumber.from(490000000).mul(ethers.BigNumber.from(10).pow(decimals)));
     await rebelToken.connect(rebelTreasury).transfer(vendContract.address, ethers.BigNumber.from(20000000).mul(ethers.BigNumber.from(10).pow(decimals)))
 
-    await misfitToken.setRebelAddress(rebelTreasury.address)
+    await misfitToken.setRebelTreasuryAddress(rebelTreasury.address)
     await misfitToken.setTroubleAddress(troubleToken.address)
     await misfitToken.setMintPrice(ethers.utils.parseEther(mintPrice));
     await misfitToken.setTroubleMintReward(troubleMintAward);
@@ -113,7 +113,7 @@ describe("Simulate a Rebellion", function () {
       await misfitToken.setMintSwapAddress(mintSwapContract.address);
 
       // Use actual REBEL token's address to test uniswap pool
-      await mintSwapContract.setRebelAddress('0xaea7e85ad73b4e8fa2c222bd43f129008fb0c56a');
+      await mintSwapContract.setRebelTreasuryAddress('0xaea7e85ad73b4e8fa2c222bd43f129008fb0c56a');
       await misfitToken.connect(member).mint(member.address, {value: ethers.utils.parseEther("0.05")});
 
       // console.log("rebelTreasuryRebelBalance2", await rebelToken.balanceOf(rebelTreasury.address));

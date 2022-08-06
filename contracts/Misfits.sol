@@ -39,7 +39,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "./Trouble.sol";
 
 interface IWithdraw {
-  function withdraw(address rebelAddress) external;
+  function withdraw(address rebelTreasuryAddress) external;
 }
 
 interface IBoost {
@@ -105,7 +105,7 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   Boost[] boosts;
   string  metadataBaseUrl;
-  address public rebelAddress;
+  address public rebelTreasuryAddress;
   address public troubleAddress;
   address public boostsContract;
   address public withdrawContract;
@@ -303,10 +303,10 @@ contract Misfits is ERC721, Pausable, Ownable {
   function withdraw() public onlyOwner {
     if(withdrawContract != address(0)) {
       payable(withdrawContract).transfer(address(this).balance);
-      IWithdraw(withdrawContract).withdraw(rebelAddress);
+      IWithdraw(withdrawContract).withdraw(rebelTreasuryAddress);
     } else {
       emit Withdrew(address(this).balance);
-      payable(rebelAddress).transfer(address(this).balance);
+      payable(rebelTreasuryAddress).transfer(address(this).balance);
     }
   }
 
@@ -318,8 +318,8 @@ contract Misfits is ERC721, Pausable, Ownable {
     maxSupply = newSupply;
   }
 
-  function setRebelAddress(address newAddress) public onlyOwner {
-    rebelAddress = newAddress;
+  function setRebelTreasuryAddress(address newAddress) public onlyOwner {
+    rebelTreasuryAddress = newAddress;
   }
 
   function setTroubleAddress(address newAddress) public onlyOwner {
