@@ -9,13 +9,13 @@ describe("Simulate a Rebellion", function () {
   let Rebel;
   let Trouble;
   let Withdraw;
-  let Invest;
+  let Vend;
   let Metadata;
   let misfitToken;
   let rebelToken;
   let troubleToken;
   let withdrawContract;
-  let investContract;
+  let vendContract;
   let metadataContract;
   let owner;
   let rebelTreasury;
@@ -24,7 +24,7 @@ describe("Simulate a Rebellion", function () {
   let decimals;
   let troubleMintAward;
 
-  const mintPrice = 500
+  const mintPrice = "0.05"
   const maxMisfitSupply = 25
   const metadataBaseUrl = 'https://rebel.fun/rebel/collectibles/'
 
@@ -36,13 +36,13 @@ describe("Simulate a Rebellion", function () {
     Rebel    = await ethers.getContractFactory("Rebel");
     Trouble  = await ethers.getContractFactory("Trouble");
     Withdraw = await ethers.getContractFactory("Withdraw");
-    Invest   = await ethers.getContractFactory("Invest");
+    Vend   = await ethers.getContractFactory("Vend");
     Metadata = await ethers.getContractFactory("Metadata");
     misfitToken  = await Misfit.deploy()
     rebelToken   = await Rebel.deploy()
     troubleToken = await Trouble.deploy()
     withdrawContract = await Withdraw.deploy()
-    investContract   = await Invest.deploy()
+    vendContract   = await Vend.deploy()
     metadataContract = await Metadata.deploy()
 
     decimals = await rebelToken.decimals();
@@ -51,11 +51,11 @@ describe("Simulate a Rebellion", function () {
 
     await rebelToken.mint(rebelTreasury.address, ethers.BigNumber.from(510000000).mul(ethers.BigNumber.from(10).pow(decimals)));
     await rebelToken.mint(communityTreasury.address, ethers.BigNumber.from(490000000).mul(ethers.BigNumber.from(10).pow(decimals)));
-    await rebelToken.connect(rebelTreasury).transfer(investContract.address, ethers.BigNumber.from(20000000).mul(ethers.BigNumber.from(10).pow(decimals)))
+    await rebelToken.connect(rebelTreasury).transfer(vendContract.address, ethers.BigNumber.from(20000000).mul(ethers.BigNumber.from(10).pow(decimals)))
 
     await misfitToken.setRebelAddress(rebelTreasury.address)
     await misfitToken.setTroubleAddress(troubleToken.address)
-    await misfitToken.setMintPrice(mintPrice);
+    await misfitToken.setMintPrice(ethers.utils.parseEther(mintPrice));
     await misfitToken.setTroubleMintReward(troubleMintAward);
     await misfitToken.setMaxSupply(maxMisfitSupply);
     await misfitToken.setMetadataBaseUrl(metadataBaseUrl);
@@ -63,14 +63,14 @@ describe("Simulate a Rebellion", function () {
     // await misfitToken.setWithdrawAddress(withdrawContract.address)
 
     await troubleToken.grantRole(troubleToken.MINTER_ROLE(), misfitToken.address);
-    await troubleToken.grantRole(troubleToken.MINTER_ROLE(), investContract.address);
+    await troubleToken.grantRole(troubleToken.MINTER_ROLE(), vendContract.address);
     await troubleToken.grantRole(troubleToken.MINTER_ROLE(), rebelTreasury.address);
     await troubleToken.grantRole(troubleToken.TRANSFER_ROLE(), rebelTreasury.address);
     await troubleToken.grantRole(troubleToken.BURNER_ROLE(), rebelTreasury.address);
 
-    await investContract.setValuation(20000000);
-    await investContract.setRebelTokenAddress(rebelToken.address);
-    await investContract.setTroubleTokenAddress(troubleToken.address);
+    await vendContract.setValuation(20000000);
+    await vendContract.setRebelTokenAddress(rebelToken.address);
+    await vendContract.setTroubleTokenAddress(troubleToken.address);
   })
 
   describe("Deployment", function(){
@@ -84,18 +84,30 @@ describe("Simulate a Rebellion", function () {
       await misfitToken.connect(rebelTreasury).mint(rebelTreasury.address, {value: ethers.utils.parseEther("0.6")});
       await misfitToken.connect(rebelTreasury).mintMultiple(rebelTreasury.address, 4, {value: ethers.utils.parseEther("11")});
 
-      await misfitToken.connect(member).mintAndStake(member.address, 1, "wagdie.fun", {value: ethers.utils.parseEther("0.6")});
-      await misfitToken.connect(member).mintAndStake(member.address, 2, "pablos.fun", {value: ethers.utils.parseEther("0.6")});
+      await misfitToken.connect(member).mintAndStake(member.address, 1, {value: ethers.utils.parseEther("0.6")});
+      await misfitToken.connect(member).mintAndStake(member.address, 2, {value: ethers.utils.parseEther("0.6")});
       await misfitToken.connect(member).mint(member.address, {value: ethers.utils.parseEther("0.6")});
 
       it("Should revert when trying to mint & stake an already-staked communityId", async function(){
         await expect(
-          misfitToken.connect(member).mintAndStake(member.address, 1, 'wagdie.xyz')
+          misfitToken.connect(member).mintAndStake(member.address, 1)
         ).to.be.revertedWith(`CommunityAlreadyStaked`);
       });
 
+      expect(await misfitToken.totalSupply()).to.equal(25);
       expect(await misfitToken.balanceOf(rebelTreasury.address)).to.equal(5);
     })
+
+    // it("Should discount bulk purchaes", async function(){
+    //   let quantity = 10;
+    //   let mintPriceInEth = await misfitToken.mintPriceInEth(rebelTreasury.address, 1);
+    //   let bulkOrderPrice = await misfitToken.mintPriceInEth(rebelTreasury.address, quantity);
+
+    //   console.log("Normal mint price: ", mintPriceInEth);
+    //   console.log("Discount mint price: ", bulkOrderPrice);
+
+    //   expect(bulkOrderPrice).to.equal((mintPriceInEth * 7 / 10) * quantity);
+    // })
 
     it("Should make Trouble for Misfit mints", async function(){
       expect(await troubleToken.balanceOf(rebelTreasury.address)).to.equal(troubleMintAward);
@@ -112,41 +124,30 @@ describe("Simulate a Rebellion", function () {
 
     it("Should revert when trying to stake an unowned Misfit", async function(){
       await expect(
-        misfitToken.connect(member).stakeMisfit(5, 50, 'tradekraft.xyz')
+        misfitToken.connect(member).stakeMisfit(5, 50)
       ).to.be.revertedWith(`Unauthorized`);
     });
 
     it("Owner should be able to stake and unstake any Misfit", async function(){
-      await misfitToken.connect(owner).stakeMisfit(5, 50, 'tradekraft.xyz');
-      await misfitToken.connect(owner).setDomainFor(5, 'tradekraft.fun');
+      await misfitToken.connect(owner).stakeMisfit(5, 50);
       await misfitToken.connect(owner).unstakeMisfit(5);
     });
 
-    it("Should prevent staking, unstaking, and domain setting for non-existent Misfits", async function(){
+    it("Should prevent staking and unstaking setting for non-existent Misfits", async function(){
       await expect(
-        misfitToken.connect(owner).stakeMisfit(500, 51, 'tradekraft.fun')
+        misfitToken.connect(owner).stakeMisfit(500, 51)
       ).to.be.revertedWith(`MisfitDoesntExist`);
 
       await expect(
         misfitToken.connect(owner).unstakeMisfit(500)
       ).to.be.revertedWith(`MisfitDoesntExist`);
-
-      await expect(
-        misfitToken.connect(owner).setDomainFor(500, 'tradekraft.lol')
-      ).to.be.revertedWith(`MisfitDoesntExist`);
     });
 
     it("Should revert when trying to stake an already-staked communityId", async function(){
       await expect(
-        misfitToken.connect(rebelTreasury).stakeMisfit(1, 1, 'wagdie.fun')
+        misfitToken.connect(rebelTreasury).stakeMisfit(1, 1)
       ).to.be.revertedWith(`CommunityAlreadyStaked`);
     });
-
-    it("Should return the correct domains for wagdie", async function(){
-      expect(await misfitToken.getDomainFor(6)).to.equal("wagdie.fun");
-      await misfitToken.connect(member).setDomainFor(6, "wagdie.xyz");
-      expect(await misfitToken.getDomainFor(6)).to.equal("wagdie.xyz");
-    })
   })
 
   describe("Misfit boosts", function(){
@@ -257,18 +258,18 @@ describe("Simulate a Rebellion", function () {
     });
   })
 
-  describe("Investors", function(){
+  describe("Vending", function(){
     it("Can calculate the correct values", async function(){
       decimals = await rebelToken.decimals();
-      result = await investContract.connect(member).rebelTotalForUsd(1);
+      result = await vendContract.connect(member).rebelTotalForUsd(1);
       expect(result).to.equal(ethers.BigNumber.from(50).mul(ethers.BigNumber.from(10).pow(decimals)));
     })
 
     it("Can ask for price in ETH and purchase REBEL", async function(){
-      minEth = await investContract.connect(member).usdPriceInEth(1);
+      minEth = await vendContract.connect(member).usdPriceInEth(1);
       decimals = await rebelToken.decimals();
       
-      await investContract.connect(member).purchase(member.address, 1, {value: minEth});
+      await vendContract.connect(member).purchase(member.address, 1, {value: minEth});
       expect(await rebelToken.balanceOf(member.address)).to.equal(ethers.BigNumber.from(50).mul(ethers.BigNumber.from(10).pow(decimals)));
     })
   })

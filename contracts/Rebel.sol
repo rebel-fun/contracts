@@ -35,7 +35,12 @@ import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 
 contract Rebel is ERC20, ERC20Snapshot, Ownable, Pausable, ERC20Permit, ERC20Votes {
+
   constructor() ERC20("Rebel", "REBEL") ERC20Permit("Rebel") {}
+
+  function mint(address to, uint256 amount) public onlyOwner {
+    _mint(to, amount);
+  }
 
   function snapshot() public onlyOwner {
     _snapshot();
@@ -49,9 +54,7 @@ contract Rebel is ERC20, ERC20Snapshot, Ownable, Pausable, ERC20Permit, ERC20Vot
     _unpause();
   }
 
-  function mint(address to, uint256 amount) public onlyOwner {
-    _mint(to, amount);
-  }
+  // The following functions are overrides required by Solidity.
 
   function _beforeTokenTransfer(address from, address to, uint256 amount)
     internal
@@ -60,8 +63,6 @@ contract Rebel is ERC20, ERC20Snapshot, Ownable, Pausable, ERC20Permit, ERC20Vot
   {
     super._beforeTokenTransfer(from, to, amount);
   }
-
-  // The following functions are overrides required by Solidity.
 
   function _afterTokenTransfer(address from, address to, uint256 amount)
     internal

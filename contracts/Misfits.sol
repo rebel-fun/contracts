@@ -35,11 +35,16 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import "./Trouble.sol";
 
+
+
+
 import "hardhat/console.sol";
+
+
+
 
 interface IWithdraw {
   function withdraw(address rebelAddress) external;
@@ -75,13 +80,19 @@ contract Misfits is ERC721, Pausable, Ownable {
   /// EVENTS ///
 
   /// @notice Emitted when staking and unstaking Misfits
-  event MisfitStaked(uint256 tokenId, uint256 communityId, string domain);
+  event MisfitStaked(uint256 tokenId, uint256 communityId);
 
   /// @notice Emitted when boosting
   event Boosted(Boost boost);
 
   /// @notice Emitted when withdrawing ETH
-  event GotPaid(uint256 eth);
+  event Withdrew(uint256 rebel);
+  
+  struct Stake {
+    uint256 tokenId;
+    uint256 communityId;
+    uint256 timestamp;
+  }
 
   struct Boost {
     uint256 tokenId;
@@ -89,23 +100,8 @@ contract Misfits is ERC721, Pausable, Ownable {
     uint256 amount;
     uint256 timestamp;
   }
-  
-  struct Stake {
-    uint256 tokenId;
-    uint256 communityId;
-    string domain;
-    uint256 timestamp;
-  }
-  
-  // Optimism Mainnet
-  // address constant ETH_USD_ORACLE = 0x13e3Ee699D1909E989722E753853AE30b17e08c5;
-  
-  // Optimism Kovan
-  address constant ETH_USD_ORACLE = 0x7f8847242a530E809E17bF2DA5D2f9d2c4A43261;
 
   Counters.Counter private _tokenIdCounter;
-
-  AggregatorV3Interface internal priceFeed = AggregatorV3Interface(ETH_USD_ORACLE);
 
   Boost[] boosts;
   string  metadataBaseUrl;
@@ -113,7 +109,7 @@ contract Misfits is ERC721, Pausable, Ownable {
   address public troubleAddress;
   address public withdrawContract;
   address public metadataContract;
-  uint256 public daiMintPrice;
+  uint256 public ethMintPrice;
   uint256 public maxSupply;
   uint256 public troubleMintReward;
   mapping(uint256 => uint256) stakedCommunities;
@@ -130,14 +126,14 @@ contract Misfits is ERC721, Pausable, Ownable {
     return(stakedMisfits[tokenId].communityId);
   }
 
-  function stakeMisfit(uint256 tokenId, uint256 communityId, string memory domain) public {
+  function stakeMisfit(uint256 tokenId, uint256 communityId) public {
     if(_tokenIdCounter.current() < tokenId) revert MisfitDoesntExist();
     if(stakedMisfits[tokenId].tokenId != 0) revert MisfitAlreadyStaked();
     if(stakedCommunities[communityId] != 0) revert CommunityAlreadyStaked();
     if(ownerOf(tokenId) != msg.sender && msg.sender != owner()) revert Unauthorized();
 
-    emit MisfitStaked(tokenId, communityId, domain);
-    stakedMisfits[tokenId] = Stake(tokenId, communityId, domain, block.timestamp);
+    emit MisfitStaked(tokenId, communityId);
+    stakedMisfits[tokenId] = Stake(tokenId, communityId, block.timestamp);
     stakedCommunities[communityId] = tokenId;
   }
   
@@ -147,28 +143,29 @@ contract Misfits is ERC721, Pausable, Ownable {
     if(ownerOf(tokenId) != msg.sender && msg.sender != owner()) revert Unauthorized();
     uint256 communityId = stakedMisfits[tokenId].communityId;
 
-    emit MisfitStaked(tokenId, 0, '');
+    emit MisfitStaked(tokenId, 0);
 
-    stakedMisfits[tokenId] = Stake(0,0,'',0);
+    stakedMisfits[tokenId] = Stake(0,0,0);
     stakedCommunities[communityId] = 0;
   }
 
-  function mintPriceInEth() public view returns (uint256) {
+  function mintPriceInEth(address to, uint256 quantity) public view returns (uint256) {
   
-    uint256 minRequiredUSD;
-    uint256 etherPriceUSD;
+    uint256 totalMintPrice;
 
-    (,int price,,,) = priceFeed.latestRoundData();
+    if(quantity >= 5) {
+      // 20% discount for 5+ purchases
+      totalMintPrice = (ethMintPrice * 8 / 10) * quantity;
+    } else {
+      totalMintPrice = (ethMintPrice) * quantity;
+    }
 
-    minRequiredUSD = daiMintPrice * 10**18;
-    etherPriceUSD = (uint256(price) / 10**8) * 10**18;
-
-    return (minRequiredUSD * 10**18) / etherPriceUSD;
+    return totalMintPrice;
   }
 
   function mint(address to) public payable returns(uint256) {
 
-    if(mintPriceInEth() > msg.value) revert NotEnoughEth();
+    if(mintPriceInEth(to, 1) > msg.value) revert NotEnoughEth();
     if(_tokenIdCounter.current() + 1 > maxSupply) revert NotEnoughSupply();
 
     _tokenIdCounter.increment();
@@ -180,33 +177,21 @@ contract Misfits is ERC721, Pausable, Ownable {
     return tokenId;
   }
 
-  function mintMultiple(address to, uint8 count) public payable returns (uint256[] memory){
-    if(mintPriceInEth() * count > msg.value) revert NotEnoughEth();
-    if(_tokenIdCounter.current() + count > maxSupply) revert NotEnoughSupply();
+  function mintMultiple(address to, uint8 quantity) public payable returns (uint256[] memory){
+    if(mintPriceInEth(to, quantity) > msg.value) revert NotEnoughEth();
+    if(_tokenIdCounter.current() + quantity > maxSupply) revert NotEnoughSupply();
 
-    uint256[] memory tokenIds = new uint256[](count);
+    uint256[] memory tokenIds = new uint256[](quantity);
 
-    for(uint256 i = 0; i < count; i++) {
+    for(uint256 i = 0; i < quantity; i++) {
       tokenIds[i] = mint(to);
     }
 
     return tokenIds;
   }
 
-  function mintAndStake(address to, uint256 communityId, string memory domain) public payable {
-    stakeMisfit(mint(to), communityId, domain);
-  }
-
-  function setDomainFor(uint256 tokenId, string memory domain) public {
-    if(_tokenIdCounter.current() < tokenId) revert MisfitDoesntExist();
-    if(ownerOf(tokenId) != msg.sender && msg.sender != owner()) revert Unauthorized();
-    if(stakedMisfits[tokenId].communityId == 0) revert MisfitNotStaked();
-    stakedMisfits[tokenId].domain = domain;
-  }
-
-  function getDomainFor(uint256 tokenId) public view returns(string memory) {
-    if(stakedMisfits[tokenId].communityId == 0) revert MisfitNotStaked();
-    return stakedMisfits[tokenId].domain;
+  function mintAndStake(address to, uint256 communityId) public payable {
+    stakeMisfit(mint(to), communityId);
   }
 
   function boost(uint256 tokenId) public payable {
@@ -285,6 +270,10 @@ contract Misfits is ERC721, Pausable, Ownable {
     }
   }
 
+  function totalSupply() public view returns (uint256) {
+    return maxSupply;
+  }
+
   receive() external payable {}
 
   // ONLY OWNER //
@@ -294,13 +283,13 @@ contract Misfits is ERC721, Pausable, Ownable {
       payable(withdrawContract).transfer(address(this).balance);
       IWithdraw(withdrawContract).withdraw(rebelAddress);
     } else {
-      emit GotPaid(address(this).balance);
+      emit Withdrew(address(this).balance);
       payable(rebelAddress).transfer(address(this).balance);
     }
   }
 
   function setMintPrice(uint256 newPrice) public onlyOwner {
-    daiMintPrice = newPrice;
+    ethMintPrice = newPrice;
   }
 
   function setMaxSupply(uint256 newSupply) public onlyOwner {
