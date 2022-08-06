@@ -38,14 +38,6 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "./Trouble.sol";
 
-
-
-
-import "hardhat/console.sol";
-
-
-
-
 interface IWithdraw {
   function withdraw(address rebelAddress) external;
 }
@@ -157,7 +149,7 @@ contract Misfits is ERC721, Pausable, Ownable {
       // 20% discount for 5+ purchases
       totalMintPrice = (ethMintPrice * 8 / 10) * quantity;
     } else {
-      totalMintPrice = (ethMintPrice) * quantity;
+      totalMintPrice = ethMintPrice * quantity;
     }
 
     return totalMintPrice;

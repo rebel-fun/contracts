@@ -25,7 +25,7 @@ describe("Simulate a Rebellion", function () {
   let troubleMintAward;
 
   const mintPrice = "0.05"
-  const maxMisfitSupply = 25
+  const maxMisfitSupply = 30
   const metadataBaseUrl = 'https://rebel.fun/rebel/collectibles/'
 
   before(async function(){
@@ -81,12 +81,12 @@ describe("Simulate a Rebellion", function () {
 
   describe("Misfit mints", function(){
     it("Should mint Misfits to Rebel Treasury", async function(){
-      await misfitToken.connect(rebelTreasury).mint(rebelTreasury.address, {value: ethers.utils.parseEther("0.5")});
-      await misfitToken.connect(rebelTreasury).mintMultiple(rebelTreasury.address, 4, {value: ethers.utils.parseEther("2")});
+      await misfitToken.connect(rebelTreasury).mint(rebelTreasury.address, {value: ethers.utils.parseEther("0.05")});
+      await misfitToken.connect(rebelTreasury).mintMultiple(rebelTreasury.address, 4, {value: ethers.utils.parseEther("0.2")});
 
-      await misfitToken.connect(member).mintAndStake(member.address, 1, {value: ethers.utils.parseEther("0.5")});
-      await misfitToken.connect(member).mintAndStake(member.address, 2, {value: ethers.utils.parseEther("0.5")});
-      await misfitToken.connect(member).mint(member.address, {value: ethers.utils.parseEther("0.5")});
+      await misfitToken.connect(member).mintAndStake(member.address, 1, {value: ethers.utils.parseEther("0.05")});
+      await misfitToken.connect(member).mintAndStake(member.address, 2, {value: ethers.utils.parseEther("0.05")});
+      await misfitToken.connect(member).mint(member.address, {value: ethers.utils.parseEther("0.05")});
 
       it("Should revert when trying to mint & stake an already-staked communityId", async function(){
         await expect(
@@ -94,17 +94,20 @@ describe("Simulate a Rebellion", function () {
         ).to.be.revertedWith(`CommunityAlreadyStaked`);
       });
 
-      expect(await misfitToken.totalSupply()).to.equal(25);
+      expect(await misfitToken.totalSupply()).to.equal(30);
       expect(await misfitToken.balanceOf(rebelTreasury.address)).to.equal(5);
     })
 
+    it("Should revert when not sending enough ETH", async function(){
+      await expect(
+        misfitToken.connect(member).mint(member.address, {value: ethers.utils.parseEther("0.04")})
+      ).to.be.revertedWith(`NotEnoughEth`);
+    });
+
     it("Should discount bulk purchases", async function(){
       let quantity = 10;
-      let mintPriceInEth = await misfitToken.mintPriceInEth(rebelTreasury.address, 1);
-      let bulkOrderPrice = await misfitToken.mintPriceInEth(rebelTreasury.address, quantity);
-
-      console.log("Normal mint price: ", mintPriceInEth);
-      console.log("Discount mint price: ", bulkOrderPrice);
+      let mintPriceInEth = parseInt(await misfitToken.mintPriceInEth(rebelTreasury.address, 1));
+      let bulkOrderPrice = parseInt(await misfitToken.mintPriceInEth(rebelTreasury.address, quantity));
 
       expect(bulkOrderPrice).to.equal((mintPriceInEth * 8 / 10) * quantity);
     })
@@ -153,16 +156,16 @@ describe("Simulate a Rebellion", function () {
   describe("Misfit boosts", function(){
     it("Should revert on unstaked misfits", async function(){
       await expect(
-        misfitToken.connect(member).boost(1, {value: ethers.utils.parseEther("0.5")})
+        misfitToken.connect(member).boost(1, {value: ethers.utils.parseEther("0.05")})
       ).to.be.revertedWith(`MisfitNotStaked`);
     });
 
     it("Should allow people to boost staked Misfit communities", async function(){
 
-      // Boosting wagdie.fun
+      // Boosting token #6
       await misfitToken.connect(member).boost(6, {value: ethers.utils.parseEther("0.5")});
 
-      // Boosting pablos.fun 2x
+      // Boosting token #6 and token #7
       await misfitToken.connect(member).boost(6, {value: ethers.utils.parseEther("0.5")});
       await misfitToken.connect(communityTreasury).boost(7, {value: ethers.utils.parseEther("1.5")});
 

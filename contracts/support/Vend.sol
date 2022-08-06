@@ -8,8 +8,6 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "../Trouble.sol";
 import "../Rebel.sol";
 
-import "hardhat/console.sol";
-
 interface IWithdraw {
   function withdraw(address rebelAddress) external;
 }
