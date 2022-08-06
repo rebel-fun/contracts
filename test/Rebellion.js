@@ -9,6 +9,7 @@ describe("Simulate a Rebellion", function () {
   let Rebel;
   let Trouble;
   let Withdraw;
+  let MintSwap;
   let Boosts;
   let Vend;
   let Metadata;
@@ -38,6 +39,7 @@ describe("Simulate a Rebellion", function () {
     Rebel    = await ethers.getContractFactory("Rebel");
     Trouble  = await ethers.getContractFactory("Trouble");
     Withdraw = await ethers.getContractFactory("Withdraw");
+    MintSwap = await ethers.getContractFactory("MintSwap");
     Boosts   = await ethers.getContractFactory("Boosts");
     Vend     = await ethers.getContractFactory("Vend");
     Metadata = await ethers.getContractFactory("Metadata");
@@ -45,6 +47,7 @@ describe("Simulate a Rebellion", function () {
     rebelToken   = await Rebel.deploy()
     troubleToken = await Trouble.deploy()
     withdrawContract = await Withdraw.deploy()
+    mintSwapContract = await MintSwap.deploy()
     boostsContract = await Boosts.deploy()
     vendContract   = await Vend.deploy()
     metadataContract = await Metadata.deploy()
@@ -100,6 +103,26 @@ describe("Simulate a Rebellion", function () {
 
       expect(await misfitToken.totalSupply()).to.equal(30);
       expect(await misfitToken.balanceOf(rebelTreasury.address)).to.equal(5);
+    })
+
+    it("Should proxy ETH to a mint swap contract when set", async function(){
+      // let rebelTreasuryRebelBalance = ethers.BigNumber.from((await rebelToken.balanceOf(rebelTreasury.address)));
+
+      // console.log("rebelTreasuryRebelBalance1", rebelTreasuryRebelBalance);
+
+      await misfitToken.setMintSwapAddress(mintSwapContract.address);
+
+      // Use actual REBEL token's address to test uniswap pool
+      await mintSwapContract.setRebelAddress('0xaea7e85ad73b4e8fa2c222bd43f129008fb0c56a');
+      await misfitToken.connect(member).mint(member.address, {value: ethers.utils.parseEther("0.05")});
+
+      // console.log("rebelTreasuryRebelBalance2", await rebelToken.balanceOf(rebelTreasury.address));
+
+      // Check that the treasury's rebel balance has increased
+      // expect(ethers.BigNumber.from((await rebelToken.balanceOf(rebelTreasury.address)))).to.be.greaterThan(rebelTreasuryRebelBalance);
+
+      // Remove the mint swap proxy
+      await misfitToken.setMintSwapAddress(ethers.constants.AddressZero);
     })
 
     it("Should revert when not sending enough ETH", async function(){

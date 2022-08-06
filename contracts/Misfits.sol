@@ -46,6 +46,10 @@ interface IBoost {
   function boost(uint256 tokenId, uint256 amount) external payable;
 }
 
+interface IMintSwap {
+  function swap(uint256 amount) external payable;
+}
+
 contract Misfits is ERC721, Pausable, Ownable {
 
   using Counters for Counters.Counter;
@@ -106,6 +110,7 @@ contract Misfits is ERC721, Pausable, Ownable {
   address public boostsContract;
   address public withdrawContract;
   address public metadataContract;
+  address public mintSwapContract;
   uint256 public ethMintPrice;
   uint256 public maxSupply;
   uint256 public troubleMintReward;
@@ -164,6 +169,26 @@ contract Misfits is ERC721, Pausable, Ownable {
 
     if(mintPriceInEth(1) > msg.value) revert NotEnoughEth();
     if(_tokenIdCounter.current() + 1 > maxSupply) revert NotEnoughSupply();
+    _swapEth();
+
+    return _mint(to);
+  }
+
+  function mintMultiple(address to, uint8 quantity) public payable returns (uint256[] memory){
+    if(mintPriceInEth(quantity) > msg.value) revert NotEnoughEth();
+    if(_tokenIdCounter.current() + quantity > maxSupply) revert NotEnoughSupply();
+    _swapEth();
+
+    uint256[] memory tokenIds = new uint256[](quantity);
+
+    for(uint256 i = 0; i < quantity; i++) {
+      tokenIds[i] = _mint(to);
+    }
+
+    return tokenIds;
+  }
+
+  function _mint(address to) private returns(uint256) {
 
     _tokenIdCounter.increment();
 
@@ -174,17 +199,11 @@ contract Misfits is ERC721, Pausable, Ownable {
     return tokenId;
   }
 
-  function mintMultiple(address to, uint8 quantity) public payable returns (uint256[] memory){
-    if(mintPriceInEth(quantity) > msg.value) revert NotEnoughEth();
-    if(_tokenIdCounter.current() + quantity > maxSupply) revert NotEnoughSupply();
+  function _swapEth() private {
+    if(mintSwapContract == address(0)) return;
 
-    uint256[] memory tokenIds = new uint256[](quantity);
-
-    for(uint256 i = 0; i < quantity; i++) {
-      tokenIds[i] = mint(to);
-    }
-
-    return tokenIds;
+    payable(mintSwapContract).transfer(msg.value);
+    IMintSwap(mintSwapContract).swap(msg.value);
   }
 
   function mintAndStake(address to, uint256 communityId) public payable {
@@ -321,6 +340,10 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   function setMetadataAddress(address newAddress) public onlyOwner {
     metadataContract = newAddress;
+  }
+
+  function setMintSwapAddress(address newAddress) public onlyOwner {
+    mintSwapContract = newAddress;
   }
 
   function setBoostsAddress(address newAddress) public onlyOwner {
