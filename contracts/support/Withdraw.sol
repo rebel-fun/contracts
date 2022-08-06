@@ -14,7 +14,7 @@ interface WethLike {
 contract Withdraw {
 
   /// @notice Emitted when swapping ETH to other stuff
-  event GotPaid(uint256 eth, uint256 dai, uint256 op);
+  event Withdrew(uint256 eth, uint256 dai, uint256 op);
 
   address constant DAI  = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
   address constant WETH = 0x4200000000000000000000000000000000000006;
@@ -94,6 +94,6 @@ contract Withdraw {
 
     opTotal = swapRouter.exactInputSingle(params);
 
-    emit GotPaid(ethTotal, daiTotal, opTotal);
+    emit Withdrew(ethTotal, daiTotal, opTotal);
   }
 }
