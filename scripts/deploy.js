@@ -25,7 +25,7 @@ async function main() {
   let decimals;
   let troubleMintAward;
 
-  const mintPrice = 0.05
+  const mintPrice = "0.05"
   const maxMisfitSupply = 1000
   const metadataBaseUrl = 'https://rebel.fun/rebel/collectibles/'
 
@@ -61,7 +61,7 @@ async function main() {
   console.log("Setting MISFIT values...")
   await misfitToken.setRebelAddress(rebelTreasuryAddress)
   await misfitToken.setTroubleAddress(troubleToken.address)
-  await misfitToken.setMintPrice(mintPrice);
+  await misfitToken.setMintPrice(ethers.utils.parseEther(mintPrice));
   await misfitToken.setTroubleMintReward(troubleMintAward);
   await misfitToken.setMaxSupply(maxMisfitSupply);
   await misfitToken.setMetadataBaseUrl(metadataBaseUrl);
@@ -79,7 +79,7 @@ async function main() {
   await vendContract.setRebelTokenAddress(rebelToken.address);
   await vendContract.setTroubleTokenAddress(troubleToken.address);
 
-  await rebelToken.transferOwnership(rebelTreasury);
+  await rebelToken.transferOwnership(rebelTreasuryAddress);
 
   console.log("Deployment complete.")
 }
