@@ -81,12 +81,12 @@ describe("Simulate a Rebellion", function () {
 
   describe("Misfit mints", function(){
     it("Should mint Misfits to Rebel Treasury", async function(){
-      await misfitToken.connect(rebelTreasury).mint(rebelTreasury.address, {value: ethers.utils.parseEther("0.6")});
-      await misfitToken.connect(rebelTreasury).mintMultiple(rebelTreasury.address, 4, {value: ethers.utils.parseEther("11")});
+      await misfitToken.connect(rebelTreasury).mint(rebelTreasury.address, {value: ethers.utils.parseEther("0.5")});
+      await misfitToken.connect(rebelTreasury).mintMultiple(rebelTreasury.address, 4, {value: ethers.utils.parseEther("2")});
 
-      await misfitToken.connect(member).mintAndStake(member.address, 1, {value: ethers.utils.parseEther("0.6")});
-      await misfitToken.connect(member).mintAndStake(member.address, 2, {value: ethers.utils.parseEther("0.6")});
-      await misfitToken.connect(member).mint(member.address, {value: ethers.utils.parseEther("0.6")});
+      await misfitToken.connect(member).mintAndStake(member.address, 1, {value: ethers.utils.parseEther("0.5")});
+      await misfitToken.connect(member).mintAndStake(member.address, 2, {value: ethers.utils.parseEther("0.5")});
+      await misfitToken.connect(member).mint(member.address, {value: ethers.utils.parseEther("0.5")});
 
       it("Should revert when trying to mint & stake an already-staked communityId", async function(){
         await expect(
@@ -98,16 +98,16 @@ describe("Simulate a Rebellion", function () {
       expect(await misfitToken.balanceOf(rebelTreasury.address)).to.equal(5);
     })
 
-    // it("Should discount bulk purchaes", async function(){
-    //   let quantity = 10;
-    //   let mintPriceInEth = await misfitToken.mintPriceInEth(rebelTreasury.address, 1);
-    //   let bulkOrderPrice = await misfitToken.mintPriceInEth(rebelTreasury.address, quantity);
+    it("Should discount bulk purchases", async function(){
+      let quantity = 10;
+      let mintPriceInEth = await misfitToken.mintPriceInEth(rebelTreasury.address, 1);
+      let bulkOrderPrice = await misfitToken.mintPriceInEth(rebelTreasury.address, quantity);
 
-    //   console.log("Normal mint price: ", mintPriceInEth);
-    //   console.log("Discount mint price: ", bulkOrderPrice);
+      console.log("Normal mint price: ", mintPriceInEth);
+      console.log("Discount mint price: ", bulkOrderPrice);
 
-    //   expect(bulkOrderPrice).to.equal((mintPriceInEth * 7 / 10) * quantity);
-    // })
+      expect(bulkOrderPrice).to.equal((mintPriceInEth * 8 / 10) * quantity);
+    })
 
     it("Should make Trouble for Misfit mints", async function(){
       expect(await troubleToken.balanceOf(rebelTreasury.address)).to.equal(troubleMintAward);
