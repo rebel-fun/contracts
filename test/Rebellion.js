@@ -9,11 +9,13 @@ describe("Simulate a Rebellion", function () {
   let Rebel;
   let Trouble;
   let Withdraw;
+  let Boosts;
   let Vend;
   let Metadata;
   let misfitToken;
   let rebelToken;
   let troubleToken;
+  let boostsContract;
   let withdrawContract;
   let vendContract;
   let metadataContract;
@@ -36,12 +38,14 @@ describe("Simulate a Rebellion", function () {
     Rebel    = await ethers.getContractFactory("Rebel");
     Trouble  = await ethers.getContractFactory("Trouble");
     Withdraw = await ethers.getContractFactory("Withdraw");
-    Vend   = await ethers.getContractFactory("Vend");
+    Boosts   = await ethers.getContractFactory("Boosts");
+    Vend     = await ethers.getContractFactory("Vend");
     Metadata = await ethers.getContractFactory("Metadata");
     misfitToken  = await Misfit.deploy()
     rebelToken   = await Rebel.deploy()
     troubleToken = await Trouble.deploy()
     withdrawContract = await Withdraw.deploy()
+    boostsContract = await Boosts.deploy()
     vendContract   = await Vend.deploy()
     metadataContract = await Metadata.deploy()
 
@@ -106,8 +110,8 @@ describe("Simulate a Rebellion", function () {
 
     it("Should discount bulk purchases", async function(){
       let quantity = 10;
-      let mintPriceInEth = parseInt(await misfitToken.mintPriceInEth(rebelTreasury.address, 1));
-      let bulkOrderPrice = parseInt(await misfitToken.mintPriceInEth(rebelTreasury.address, quantity));
+      let mintPriceInEth = parseInt(await misfitToken.mintPriceInEth(1));
+      let bulkOrderPrice = parseInt(await misfitToken.mintPriceInEth(quantity));
 
       expect(bulkOrderPrice).to.equal((mintPriceInEth * 8 / 10) * quantity);
     })
@@ -177,6 +181,20 @@ describe("Simulate a Rebellion", function () {
       expect((await misfitToken.boostsFromAddressForToken(member.address, 6)).length).to.equal(2);
       expect((await misfitToken.boostsFromAddressForToken(communityTreasury.address, 6)).length).to.equal(0);
       expect((await misfitToken.boostsFromAddressForToken(communityTreasury.address, 7)).length).to.equal(1);
+    })
+
+    it("Should use a proxy Boosts contract when set", async function(){
+      
+      // Set a proxy Boosts contract and call its boost()
+      await misfitToken.setBoostsAddress(boostsContract.address);
+      await misfitToken.connect(member).boost(6, {value: ethers.utils.parseEther("0.5")});
+
+      // Check that the proxy contract has the new boost value
+      expect(await provider.getBalance(boostsContract.address)).to.equal(ethers.utils.parseEther("0.5"));
+      expect((await boostsContract.getBoosts()).length).to.equal(1);
+
+      // Remove the custom boost proxy so the rest of the tests work
+      await misfitToken.setBoostsAddress(ethers.constants.AddressZero);
     })
   })
 

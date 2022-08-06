@@ -42,6 +42,10 @@ interface IWithdraw {
   function withdraw(address rebelAddress) external;
 }
 
+interface IBoost {
+  function boost(uint256 tokenId, uint256 amount) external payable;
+}
+
 contract Misfits is ERC721, Pausable, Ownable {
 
   using Counters for Counters.Counter;
@@ -99,6 +103,7 @@ contract Misfits is ERC721, Pausable, Ownable {
   string  metadataBaseUrl;
   address public rebelAddress;
   address public troubleAddress;
+  address public boostsContract;
   address public withdrawContract;
   address public metadataContract;
   uint256 public ethMintPrice;
@@ -141,7 +146,7 @@ contract Misfits is ERC721, Pausable, Ownable {
     stakedCommunities[communityId] = 0;
   }
 
-  function mintPriceInEth(address to, uint256 quantity) public view returns (uint256) {
+  function mintPriceInEth(uint256 quantity) public view returns (uint256) {
   
     uint256 totalMintPrice;
 
@@ -157,7 +162,7 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   function mint(address to) public payable returns(uint256) {
 
-    if(mintPriceInEth(to, 1) > msg.value) revert NotEnoughEth();
+    if(mintPriceInEth(1) > msg.value) revert NotEnoughEth();
     if(_tokenIdCounter.current() + 1 > maxSupply) revert NotEnoughSupply();
 
     _tokenIdCounter.increment();
@@ -170,7 +175,7 @@ contract Misfits is ERC721, Pausable, Ownable {
   }
 
   function mintMultiple(address to, uint8 quantity) public payable returns (uint256[] memory){
-    if(mintPriceInEth(to, quantity) > msg.value) revert NotEnoughEth();
+    if(mintPriceInEth(quantity) > msg.value) revert NotEnoughEth();
     if(_tokenIdCounter.current() + quantity > maxSupply) revert NotEnoughSupply();
 
     uint256[] memory tokenIds = new uint256[](quantity);
@@ -188,9 +193,15 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   function boost(uint256 tokenId) public payable {
     if(stakedMisfits[tokenId].communityId == 0) revert MisfitNotStaked();
-    Boost memory _boost = Boost(tokenId, msg.sender, msg.value, block.timestamp);
-    boosts.push(_boost);
-    emit Boosted(_boost);
+
+    if(boostsContract != address(0)) {
+      payable(boostsContract).transfer(msg.value);
+      IBoost(boostsContract).boost(tokenId, msg.value);
+    } else {
+      Boost memory _boost = Boost(tokenId, msg.sender, msg.value, block.timestamp);
+      boosts.push(_boost);
+      emit Boosted(_boost);
+    }
   }
 
   function totalBoostedForToken(uint256 tokenId) public view returns(uint256) {
@@ -310,6 +321,10 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   function setMetadataAddress(address newAddress) public onlyOwner {
     metadataContract = newAddress;
+  }
+
+  function setBoostsAddress(address newAddress) public onlyOwner {
+    boostsContract = newAddress;
   }
 
   function pause() public onlyOwner {
