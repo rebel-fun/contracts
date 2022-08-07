@@ -210,9 +210,12 @@ describe("Simulate a Rebellion", function () {
       
       // Set a proxy Boosts contract and call its boost()
       await misfitToken.setBoostsAddress(boostsContract.address);
+  
+      // Balance should start at zero      
+      expect(await provider.getBalance(boostsContract.address)).to.equal(0);
       await misfitToken.connect(member).boost(6, {value: ethers.utils.parseEther("0.5")});
 
-      // Check that the proxy contract has the new boost value
+      // Check that the proxy contract has the new boost value and ETH balance
       expect(await provider.getBalance(boostsContract.address)).to.equal(ethers.utils.parseEther("0.5"));
       expect((await boostsContract.getBoosts()).length).to.equal(1);
 

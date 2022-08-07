@@ -22,8 +22,8 @@ contract Boosts {
 
   receive() external payable { }
 
-  function boost(uint256 tokenId, uint256 amount) public payable {
-    Boost memory _boost = Boost(tokenId, msg.sender, amount, block.timestamp);
+  function boost(uint256 tokenId) public payable {
+    Boost memory _boost = Boost(tokenId, msg.sender, msg.value, block.timestamp);
     boosts.push(_boost);
     emit Boosted(_boost);
   }

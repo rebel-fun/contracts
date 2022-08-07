@@ -43,7 +43,7 @@ interface IWithdraw {
 }
 
 interface IBoost {
-  function boost(uint256 tokenId, uint256 amount) external payable;
+  function boost(uint256 tokenId) external payable;
 }
 
 interface IMintSwap {
@@ -156,7 +156,7 @@ contract Misfits is ERC721, Pausable, Ownable {
     uint256 totalMintPrice;
 
     if(quantity >= 5) {
-      // 20% discount for 5+ purchases
+      // 20% discount for minting 5+
       totalMintPrice = (ethMintPrice * 8 / 10) * quantity;
     } else {
       totalMintPrice = ethMintPrice * quantity;
@@ -188,24 +188,6 @@ contract Misfits is ERC721, Pausable, Ownable {
     return tokenIds;
   }
 
-  function _mint(address to) private returns(uint256) {
-
-    _tokenIdCounter.increment();
-
-    uint256 tokenId = _tokenIdCounter.current();
-    _safeMint(to, tokenId);
-    _makeTrouble(to);
-
-    return tokenId;
-  }
-
-  function _swapEth() private {
-    if(mintSwapContract == address(0)) return;
-
-    payable(mintSwapContract).transfer(msg.value);
-    IMintSwap(mintSwapContract).swap(msg.value);
-  }
-
   function mintAndStake(address to, uint256 communityId) public payable {
     stakeMisfit(mint(to), communityId);
   }
@@ -214,8 +196,7 @@ contract Misfits is ERC721, Pausable, Ownable {
     if(stakedMisfits[tokenId].communityId == 0) revert MisfitNotStaked();
 
     if(boostsContract != address(0)) {
-      payable(boostsContract).transfer(msg.value);
-      IBoost(boostsContract).boost(tokenId, msg.value);
+      IBoost(boostsContract).boost{value: msg.value}(tokenId);
     } else {
       Boost memory _boost = Boost(tokenId, msg.sender, msg.value, block.timestamp);
       boosts.push(_boost);
@@ -359,6 +340,24 @@ contract Misfits is ERC721, Pausable, Ownable {
   }
 
   // PRIVATE //
+
+  function _mint(address to) private returns(uint256) {
+
+    _tokenIdCounter.increment();
+
+    uint256 tokenId = _tokenIdCounter.current();
+    _safeMint(to, tokenId);
+    _makeTrouble(to);
+
+    return tokenId;
+  }
+
+  function _swapEth() private {
+    if(mintSwapContract == address(0)) return;
+
+    payable(mintSwapContract).transfer(msg.value);
+    IMintSwap(mintSwapContract).swap(msg.value);
+  }
 
   function _makeTrouble(address to) private {
     if(Trouble(troubleAddress).balanceOf(to) == 0) {
