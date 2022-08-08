@@ -28,7 +28,7 @@ describe("Simulate a Rebellion", function () {
   let troubleMintAward;
 
   const mintPrice = "0.05"
-  const maxMisfitSupply = 30
+  const maxMisfitSupply = 130
   const metadataBaseUrl = 'https://rebel.fun/rebel/collectibles/'
 
   before(async function(){

@@ -36,14 +36,19 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-import "./Trouble.sol";
+// import "./Trouble.sol";
 
 interface IWithdraw {
   function withdraw(address rebelTreasuryAddress) external;
 }
 
+interface ITrouble {
+  function makeTrouble(address to, uint256 amount) external;
+  function balanceOf(address _owner) external returns (uint256 balance);
+}
+
 interface IBoost {
-  function boost(uint256 tokenId) external payable;
+  function boost(uint256 tokenId, address sender) external payable;
 }
 
 interface IMintSwap {
@@ -196,7 +201,7 @@ contract Misfits is ERC721, Pausable, Ownable {
     if(stakedMisfits[tokenId].communityId == 0) revert MisfitNotStaked();
 
     if(boostsContract != address(0)) {
-      IBoost(boostsContract).boost{value: msg.value}(tokenId);
+      IBoost(boostsContract).boost{value: msg.value}(tokenId, msg.sender);
     } else {
       Boost memory _boost = Boost(tokenId, msg.sender, msg.value, block.timestamp);
       boosts.push(_boost);
@@ -360,8 +365,8 @@ contract Misfits is ERC721, Pausable, Ownable {
   }
 
   function _makeTrouble(address to) private {
-    if(Trouble(troubleAddress).balanceOf(to) == 0) {
-      Trouble(troubleAddress).makeTrouble(to, troubleMintReward);
+    if(ITrouble(troubleAddress).balanceOf(to) == 0) {
+      ITrouble(troubleAddress).makeTrouble(to, troubleMintReward);
     }
   }
 }
