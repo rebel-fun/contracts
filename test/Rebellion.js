@@ -13,6 +13,8 @@ describe("Simulate a Rebellion", function () {
   let Boosts;
   let Vend;
   let Metadata;
+  let CrossChain;
+  let L1Mint;
   let misfitToken;
   let rebelToken;
   let troubleToken;
@@ -29,11 +31,11 @@ describe("Simulate a Rebellion", function () {
 
   const mintPrice = "0.05"
   const maxMisfitSupply = 130
-  const metadataBaseUrl = 'https://rebel.fun/rebel/collectibles/'
+  const metadataBaseUrl = 'https://rebel.fun/misfits/'
 
   before(async function(){
 
-    [owner, rebelTreasury, communityTreasury, member] = await ethers.getSigners();
+    [owner, rebelTreasury, communityTreasury, member, l1MintContract, xDomainMessenger] = await ethers.getSigners();
 
     Misfit   = await ethers.getContractFactory("Misfits");
     Rebel    = await ethers.getContractFactory("Rebel");
@@ -43,14 +45,19 @@ describe("Simulate a Rebellion", function () {
     Boosts   = await ethers.getContractFactory("Boosts");
     Vend     = await ethers.getContractFactory("Vend");
     Metadata = await ethers.getContractFactory("Metadata");
-    misfitToken  = await Misfit.deploy()
-    rebelToken   = await Rebel.deploy()
-    troubleToken = await Trouble.deploy()
+    CrossChain = await ethers.getContractFactory("CrossChain");
+    L1Mint   = await ethers.getContractFactory("L1Mint");
+    
+    misfitToken      = await Misfit.deploy()
+    rebelToken       = await Rebel.deploy()
+    troubleToken     = await Trouble.deploy()
     withdrawContract = await Withdraw.deploy()
     mintSwapContract = await MintSwap.deploy()
-    boostsContract = await Boosts.deploy()
-    vendContract   = await Vend.deploy()
+    boostsContract   = await Boosts.deploy()
+    vendContract     = await Vend.deploy()
     metadataContract = await Metadata.deploy()
+    crossContract    = await CrossChain.deploy()
+    l1MintContract   = await L1Mint.deploy()
 
     decimals = await rebelToken.decimals();
 
@@ -65,7 +72,10 @@ describe("Simulate a Rebellion", function () {
     await misfitToken.setMintPrice(ethers.utils.parseEther(mintPrice));
     await misfitToken.setTroubleMintReward(troubleMintAward);
     await misfitToken.setMaxSupply(maxMisfitSupply);
-    await misfitToken.setMetadataBaseUrl(metadataBaseUrl);
+    // await misfitToken.setMetadataBaseUrl(metadataBaseUrl);
+    await misfitToken.setL1MintContractAddress(l1MintContract.address)
+    await misfitToken.setOvmL2CrossDomainMessenger(xDomainMessenger.address)
+
     // UNCOMMENT FOR LIVE DEPLOYMENT
     // await misfitToken.setWithdrawAddress(withdrawContract.address)
 
@@ -78,6 +88,14 @@ describe("Simulate a Rebellion", function () {
     await vendContract.setValuation(20000000);
     await vendContract.setRebelTokenAddress(rebelToken.address);
     await vendContract.setTroubleTokenAddress(troubleToken.address);
+
+    // Cross chain minting
+    await crossContract.setMisfitsAddress(misfitToken.address)
+    await crossContract.setL1MintContractAddress(l1MintContract.address)
+    await l1MintContract.setCrossDomainContractAddress(crossContract.address)
+
+    await misfitToken.setOvmL2CrossDomainMessenger(crossContract.address)
+    await misfitToken.setL1MintContractAddress(l1MintContract.address)
   })
 
   describe("Deployment", function(){
@@ -101,8 +119,15 @@ describe("Simulate a Rebellion", function () {
         ).to.be.revertedWith(`CommunityAlreadyStaked`);
       });
 
-      expect(await misfitToken.totalSupply()).to.equal(30);
-      expect(await misfitToken.balanceOf(rebelTreasury.address)).to.equal(5);
+      await misfitToken.connect(rebelTreasury).mintMultiple(rebelTreasury.address, 99, {value: ethers.utils.parseEther("5")});
+
+      expect(await misfitToken.totalSupply()).to.equal(130);
+      expect(await misfitToken.balanceOf(rebelTreasury.address)).to.equal(104);
+    })
+
+    it("Should mint L1 -> L2 for free", async function(){
+      await l1MintContract.connect(member).mint(member.address);
+      expect(await misfitToken.balanceOf(member.address)).to.equal(4);
     })
 
     it("Should proxy ETH to a mint swap contract when set", async function(){
@@ -200,10 +225,10 @@ describe("Simulate a Rebellion", function () {
       expect(await misfitToken.totalBoostedForToken(7)).to.equal(ethers.utils.parseEther("1.5"));
       
       // Verify that various boosts getters work
-      expect((await misfitToken.boostsFromAddress(member.address)).length).to.equal(2);
-      expect((await misfitToken.boostsFromAddressForToken(member.address, 6)).length).to.equal(2);
-      expect((await misfitToken.boostsFromAddressForToken(communityTreasury.address, 6)).length).to.equal(0);
-      expect((await misfitToken.boostsFromAddressForToken(communityTreasury.address, 7)).length).to.equal(1);
+      expect((await misfitToken.boostsFromAddress(member.address, 0)).length).to.equal(2);
+      expect((await misfitToken.boostsFromAddress(member.address, 6)).length).to.equal(2);
+      expect((await misfitToken.boostsFromAddress(communityTreasury.address, 6)).length).to.equal(0);
+      expect((await misfitToken.boostsFromAddress(communityTreasury.address, 7)).length).to.equal(1);
     })
 
     it("Should use a proxy Boosts contract when set", async function(){
@@ -211,7 +236,7 @@ describe("Simulate a Rebellion", function () {
       // Set a proxy Boosts contract and call its boost()
       await misfitToken.setBoostsAddress(boostsContract.address);
   
-      // Balance should start at zero      
+      // Balance should start at zero
       expect(await provider.getBalance(boostsContract.address)).to.equal(0);
       await misfitToken.connect(member).boost(6, {value: ethers.utils.parseEther("0.5")});
 

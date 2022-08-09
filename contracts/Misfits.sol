@@ -36,6 +36,8 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "@openzeppelin/contracts/utils/Strings.sol";
 
+import { ICrossDomainMessenger } from "@eth-optimism/contracts/libraries/bridge/ICrossDomainMessenger.sol";
+
 // import "./Trouble.sol";
 
 interface IWithdraw {
@@ -108,8 +110,8 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   Counters.Counter private _tokenIdCounter;
 
-  Boost[] boosts;
-  string  metadataBaseUrl;
+  Boost[] public boosts;
+  string  metadataBaseUrl = 'https://rebel.fun/misfits/';
   address public rebelTreasuryAddress;
   address public troubleAddress;
   address public boostsContract;
@@ -119,6 +121,10 @@ contract Misfits is ERC721, Pausable, Ownable {
   uint256 public ethMintPrice;
   uint256 public maxSupply;
   uint256 public troubleMintReward;
+
+  address l1MintContractAddress;
+  address ovmL2CrossDomainMessenger;
+  
   mapping(uint256 => uint256) stakedCommunities;
   mapping(uint256 => Stake) stakedMisfits;
 
@@ -159,6 +165,12 @@ contract Misfits is ERC721, Pausable, Ownable {
   function mintPriceInEth(uint256 quantity) public view returns (uint256) {
   
     uint256 totalMintPrice;
+
+    // Free minting from authorized L1 contract
+    if(msg.sender == address(ovmL2CrossDomainMessenger)
+        && ICrossDomainMessenger(ovmL2CrossDomainMessenger).xDomainMessageSender() == l1MintContractAddress) {
+      return 0;
+    }
 
     if(quantity >= 5) {
       // 20% discount for minting 5+
@@ -222,14 +234,16 @@ contract Misfits is ERC721, Pausable, Ownable {
     return total;
   }
 
-  function boostsFromAddress(address sender) public view returns(Boost[] memory) {
+  function boostsFromAddress(address sender, uint256 tokenId) public view returns(Boost[] memory) {
 
     uint256 y = 0;
     uint256 boostsCount = 0;
 
     for(uint256 i = 0; i < boosts.length; i++) {
       if(address(boosts[i].sender) == sender) {
-        boostsCount++;
+        if(tokenId == 0 || boosts[i].tokenId == tokenId) {
+          boostsCount++;
+        }
       }
     }
 
@@ -237,29 +251,10 @@ contract Misfits is ERC721, Pausable, Ownable {
 
     for(uint256 i = 0; i < boosts.length; i++) {
       if(address(boosts[i].sender) == sender) {
-        _boosts[y] = boosts[i];
-        y++;
-      }
-    }
-
-    return _boosts;
-  }
-
-  function boostsFromAddressForToken(address sender, uint256 tokenId) public view returns(Boost[] memory) {
-
-    uint256 y = 0;
-    uint256 boostsCount = 0;
-
-    for(uint256 i = 0; i < boosts.length; i++) {
-      if(boosts[i].sender == sender && boosts[i].tokenId == tokenId) boostsCount++;
-    }
-
-    Boost[] memory _boosts = new Boost[](boostsCount);
-
-    for(uint256 i = 0; i < boosts.length; i++) {
-      if(boosts[i].sender == sender && boosts[i].tokenId == tokenId) {
-        _boosts[y] = boosts[i];
-        y++;
+        if(tokenId == 0 || boosts[i].tokenId == tokenId) {
+          _boosts[y] = boosts[i];
+          y++;
+        }
       }
     }
 
@@ -296,6 +291,10 @@ contract Misfits is ERC721, Pausable, Ownable {
     }
   }
 
+  function withdrawERC20(address token) public onlyOwner {
+    ERC20(token).transfer(rebelTreasuryAddress, ERC20(token).balanceOf(address(this)));
+  }
+
   function setMintPrice(uint256 newPrice) public onlyOwner {
     ethMintPrice = newPrice;
   }
@@ -320,10 +319,6 @@ contract Misfits is ERC721, Pausable, Ownable {
     withdrawContract = newAddress;
   }
 
-  function setMetadataBaseUrl(string calldata newUrl) public onlyOwner {
-    metadataBaseUrl = newUrl;
-  }
-
   function setMetadataAddress(address newAddress) public onlyOwner {
     metadataContract = newAddress;
   }
@@ -334,6 +329,14 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   function setBoostsAddress(address newAddress) public onlyOwner {
     boostsContract = newAddress;
+  }
+
+  function setL1MintContractAddress(address newAddress) public onlyOwner {
+    l1MintContractAddress = newAddress;
+  }
+
+  function setOvmL2CrossDomainMessenger(address newAddress) public onlyOwner {
+    ovmL2CrossDomainMessenger = newAddress;
   }
 
   function pause() public onlyOwner {
@@ -359,13 +362,12 @@ contract Misfits is ERC721, Pausable, Ownable {
 
   function _swapEth() private {
     if(mintSwapContract == address(0)) return;
-
     payable(mintSwapContract).transfer(msg.value);
     IMintSwap(mintSwapContract).swap(msg.value);
   }
 
   function _makeTrouble(address to) private {
-    if(ITrouble(troubleAddress).balanceOf(to) == 0) {
+    if(troubleAddress != address(0) && ITrouble(troubleAddress).balanceOf(to) == 0) {
       ITrouble(troubleAddress).makeTrouble(to, troubleMintReward);
     }
   }

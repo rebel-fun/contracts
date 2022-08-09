@@ -36,13 +36,9 @@ contract Withdraw {
     swapEth(rebelAddress);
     payable(rebelAddress).transfer(address(this).balance);
 
-    TransferHelper.safeApprove(DAI, rebelAddress, ERC20(DAI).balanceOf(address(this)));
-    TransferHelper.safeApprove(OP, rebelAddress, ERC20(OP).balanceOf(address(this)));
-    TransferHelper.safeApprove(WETH, rebelAddress, ERC20(WETH).balanceOf(address(this)));
-
-    ERC20(DAI).transferFrom(address(this), rebelAddress, ERC20(DAI).balanceOf(address(this)));
-    ERC20(OP).transferFrom(address(this), rebelAddress, ERC20(OP).balanceOf(address(this)));
-    ERC20(WETH).transferFrom(address(this), rebelAddress, ERC20(WETH).balanceOf(address(this)));
+    ERC20(DAI).transfer(rebelAddress, ERC20(DAI).balanceOf(address(this)));
+    ERC20(OP).transfer(rebelAddress, ERC20(OP).balanceOf(address(this)));
+    ERC20(WETH).transfer(rebelAddress, ERC20(WETH).balanceOf(address(this)));
   }
 
   // PRIVATE //
